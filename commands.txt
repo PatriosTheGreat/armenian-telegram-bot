@@ -1,0 +1,3 @@
+help -- describe what bot can do
+learn_alphabet -- give a single letter from alphabet to learn
+reset_my_state -- forget about the last conversation
