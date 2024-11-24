@@ -140,12 +140,21 @@ class UserConversationState(enum.IntEnum):
 class UserStatistics:
     def __init__(self):
         self.letter_to_learned = {}
+        for char in alphabet:
+            self.letter_to_learned[char] = 0
 
     def mark_letter_learned(self, letter: ArmenianChar):
         if letter in self.letter_to_learned:
             self.letter_to_learned[letter] += 1
-        else:
-            self.letter_to_learned[letter] = 1
+
+    def choose_random_word(self) -> ArmenianChar:
+        total_sum = sum(self.letter_to_learned.values())
+        if total_sum == 0:
+            return random.randint(0, len(alphabet) - 1)
+
+        weights = [1 - x / total_sum for x in self.letter_to_learned.values()]
+        return random.choices(range(len(alphabet)), weights=weights, k=1)[0]
+
 
 class UserInfo:
     max_letter_attempts = 3
@@ -172,7 +181,8 @@ class UserInfo:
     def ask_random_letter(self) -> str:
         self.conversation_state = UserConversationState.TRAIN_LETTER
         self.attempts = 0
-        self.asked_letter_id = random.randint(0, len(alphabet) - 1)
+
+        self.asked_letter_id = self.stats.choose_random_word()
         return f'Что это за буква \'{self.asked_letter().char}\'?'
     
     def give_up(self) -> str:
