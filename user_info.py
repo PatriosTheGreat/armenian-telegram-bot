@@ -65,3 +65,25 @@ class UserInfo:
         letter = self.asked_letter()
         return ('Ничего. В следующий раз угадаешь!' +
             f'\nЭто кстати была буква: {armenian_char.description(letter, word_repo)}')
+    
+    def get_statistics(self) -> str:
+        result = 'Ваша статистика:\n'
+        for letter, amount in self.stats.letter_to_learned.items():
+            if amount > 0:
+                result += f'Буква {letter.char}. Удачных отгадываний: {amount}\n'
+        return result
+
+    def conversation(self, user_message: str) -> str:
+        if self.conversation_state == UserConversationState.NONE:
+            return self.ask_random_letter()
+        else:
+            asked_letter: armenian_char.Char = self.asked_letter()
+            if user_message.strip().upper() in asked_letter.translation:
+                self.stats.mark_letter_learned(asked_letter)
+                return 'Бинго!\n' + self.ask_random_letter()
+            elif self.attempts < UserInfo.max_letter_attempts:
+                left_attempts = UserInfo.max_letter_attempts - self.attempts
+                self.attempts += 1
+                return f'Не угадал =(\nОсталось попыток: {left_attempts}.'
+            else:
+                return self.give_up(self.word_repo)

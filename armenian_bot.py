@@ -20,8 +20,8 @@ config = configparser.ConfigParser()
 config.read('bot_config.ini')
 token = config['DEFAULT']['BotToken']
 
-wordRepo = word.WordRepository()
-alphabetRepo = armenian_char.AlphabetRepository()
+word_repo = word.WordRepository()
+alphabet_repo = armenian_char.AlphabetRepository()
 
 # Which letter should user learn next
 user_id_to_info = {}
@@ -34,34 +34,28 @@ async def help(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 def get_user_info(update: Update) -> user_info.UserInfo:
     chat_id = update.message.chat.id
     if chat_id not in user_id_to_info:
-        user_id_to_info[chat_id] = user_info.UserInfo(chat_id, alphabetRepo)
+        user_id_to_info[chat_id] = user_info.UserInfo(chat_id, alphabet_repo)
 
     return user_id_to_info[chat_id]
 
 async def reset_my_state(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     info = get_user_info(update)
-    await update.message.reply_text('Понял. Давай начнем все заного!\n' + info.give_up(wordRepo))
+    await update.message.reply_text('Понял. Давай начнем все заного!\n' + info.give_up(word_repo))
 
 async def learn_next_char(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     letter: armenian_char.Char = get_user_info(update).next_letter()
-    await update.message.reply_text(f'{letter.char}. {armenian_char.description(letter, wordRepo)}')
+    await update.message.reply_text(f'{letter.char}. {armenian_char.description(letter, word_repo)}')
 
 async def learn_alphabet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     result = ''
-    for letter in alphabetRepo.iterate():
-        result += f'{letter.char}. {armenian_char.description(letter, wordRepo)}\n\n'
+    for letter in alphabet_repo.iterate():
+        result += f'{letter.char}. {armenian_char.description(letter, word_repo)}\n\n'
     
     await update.message.reply_text(result)
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     info = get_user_info(update)
-
-    result = 'Ваша статистика:\n'
-    for letter, amount in info.stats.letter_to_learned.items():
-        if amount > 0:
-            result += f'Буква {letter.char}. Удачных отгадываний: {amount}\n'
-    
-    await update.message.reply_text(result)
+    await update.message.reply_text(info.get_statistics())
 
 async def subscribe_to_daily_train(
         update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -77,24 +71,8 @@ async def unsubscribe_from_daily_train(
 
 async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     info = get_user_info(update)
-
-    reply_message: str
-    if info.conversation_state == user_info.UserConversationState.NONE:
-        reply_message = info.ask_random_letter()
-    else:
-        user_letter = update.message.text.strip().upper()
-        asked_letter: armenian_char.Char = info.asked_letter()
-        if user_letter in asked_letter.translation:
-            info.stats.mark_letter_learned(asked_letter)
-            reply_message = 'Бинго!\n' + info.ask_random_letter()
-        elif info.attempts < user_info.UserInfo.max_letter_attempts:
-            left_attempts = user_info.UserInfo.max_letter_attempts - info.attempts
-            info.attempts += 1
-            reply_message = f'Не угадал =(\nОсталось попыток: {left_attempts}.'
-        else:
-            reply_message = info.give_up(wordRepo)
-
-    await update.message.reply_text(reply_message)
+    user_message = update.message.text
+    await update.message.reply_text(info.conversation(user_message))
 
 async def scheduled_conversation(app: Application):
     logging.info('Checking subscriptions')
