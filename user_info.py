@@ -10,27 +10,29 @@ class UserConversationState(enum.IntEnum):
     TRAIN_LETTER = 1
 
 class UserStatistics:
-    def __init__(self):
+    def __init__(self, alphabet: armenian_char.AlphabetRepository):
+        self.alphabet = alphabet
         self.letter_to_learned = {}
-        for char in armenian_char.alphabet:
-            self.letter_to_learned[char] = 0
+        for letter in self.alphabet.iterate():
+            self.letter_to_learned[letter] = 0
 
-    def mark_letter_learned(self, letter: armenian_char.ArmenianChar):
+    def mark_letter_learned(self, letter: armenian_char.Char):
         if letter in self.letter_to_learned:
             self.letter_to_learned[letter] += 1
 
-    def choose_random_word(self) -> armenian_char.ArmenianChar:
+    def choose_random_word(self) -> armenian_char.Char:
         total_sum = sum(self.letter_to_learned.values())
+        length = self.alphabet.length()
         if total_sum == 0:
-            return random.randint(0, len(armenian_char.alphabet) - 1)
+            return random.randint(0, length - 1)
 
         weights = [1 - x / total_sum for x in self.letter_to_learned.values()]
-        return random.choices(range(len(armenian_char.alphabet)), weights=weights, k=1)[0]
+        return random.choices(range(length), weights=weights, k=1)[0]
 
 class UserInfo:
     max_letter_attempts = 3
 
-    def __init__(self, chat_id):
+    def __init__(self, chat_id, alphabet: armenian_char.AlphabetRepository):
         self.conversation_state = UserConversationState.NONE
         self.letter_id = -1
         self.asked_letter_id = 0
@@ -38,16 +40,15 @@ class UserInfo:
         self.is_subscribed = False
         self.last_conversation_trigger = datetime.datetime.now()
         self.attempts = 0
-        self.stats = UserStatistics()
+        self.stats = UserStatistics(alphabet)
+        self.alphabet = alphabet
 
-    def asked_letter(self) -> armenian_char.ArmenianChar:
-        return armenian_char.alphabet[self.asked_letter_id]
+    def asked_letter(self) -> armenian_char.Char:
+        return self.alphabet.get_char(self.asked_letter_id)
 
-    def next_letter(self) -> armenian_char.ArmenianChar:
-        self.letter_id += 1
-        if self.letter_id >= len(armenian_char.alphabet):
-            self.letter_id = 0
-        return armenian_char.alphabet[self.letter_id]
+    def next_letter(self) -> armenian_char.Char:
+        self.letter_id = self.alphabet.next_id(self.letter_id)
+        return self.alphabet.get_char(self.letter_id)
 
     def ask_random_letter(self) -> str:
         self.conversation_state = UserConversationState.TRAIN_LETTER

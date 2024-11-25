@@ -21,6 +21,7 @@ config.read('bot_config.ini')
 token = config['DEFAULT']['BotToken']
 
 wordRepo = word.WordRepository()
+alphabetRepo = armenian_char.AlphabetRepository()
 
 # Which letter should user learn next
 user_id_to_info = {}
@@ -33,7 +34,7 @@ async def help(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 def get_user_info(update: Update) -> user_info.UserInfo:
     chat_id = update.message.chat.id
     if chat_id not in user_id_to_info:
-        user_id_to_info[chat_id] = user_info.UserInfo(chat_id)
+        user_id_to_info[chat_id] = user_info.UserInfo(chat_id, alphabetRepo)
 
     return user_id_to_info[chat_id]
 
@@ -42,12 +43,12 @@ async def reset_my_state(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text('Понял. Давай начнем все заного!\n' + info.give_up(wordRepo))
 
 async def learn_next_char(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    letter: armenian_char.ArmenianChar = get_user_info(update).next_letter()
+    letter: armenian_char.Char = get_user_info(update).next_letter()
     await update.message.reply_text(f'{letter.char}. {armenian_char.description(letter, wordRepo)}')
 
 async def learn_alphabet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     result = ''
-    for letter in armenian_char.alphabet:
+    for letter in alphabetRepo.iterate():
         result += f'{letter.char}. {armenian_char.description(letter, wordRepo)}\n\n'
     
     await update.message.reply_text(result)
@@ -82,7 +83,7 @@ async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         reply_message = info.ask_random_letter()
     else:
         user_letter = update.message.text.strip().upper()
-        asked_letter: armenian_char.ArmenianChar = info.asked_letter()
+        asked_letter: armenian_char.Char = info.asked_letter()
         if user_letter in asked_letter.translation:
             info.stats.mark_letter_learned(asked_letter)
             reply_message = 'Бинго!\n' + info.ask_random_letter()
